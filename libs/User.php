@@ -4,6 +4,10 @@ class User extends MySql{
 	private $authId;
 	private $username;
 	private $password;
+	public $userID;
+	public $userEmail;
+	public $userName;
+	public $userApprove;
 /*
 	 * User login authetiction Check
 	*/

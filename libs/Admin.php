@@ -117,7 +117,8 @@ function activeAdmin($username)
 	}
 	function updateLastLogin($id){
 		$date=date("Y-m-d H:i:s");
-		echo $query= "UPDATE admin SET last_login='$date' WHERE id='$id'";
+		$query= "UPDATE admin SET last_login='$date' WHERE id='$id'";
+		$this->execute($query);
 		return $query;
 	}
 	

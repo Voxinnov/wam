@@ -1,57 +1,88 @@
-<?php	 	
-//error_reporting(E_ALL ^ E_DEPRECATED);
-	class MySql
+<?php
+
+declare(strict_types=1);
+
+class MySql
+{
+	private ?string $dbUser       = null;
+	private ?string $dbPass       = null;
+	private ?string $dbName       = null;
+	private ?string $dbHost       = null;
+	private mixed   $dbConnection = null;
+	private ?string $errorString  = null;
+	private bool    $filter       = true;
+	public  bool    $newCon       = false;
+	public  ?string $query        = null;
+	public  mixed   $lastId       = null;
+	public static mixed $instance   = null;
+	public static mixed $connection = null;
+
+	public function __construct()
 	{
-		private $dbUser;
-		private $dbPass;
-		private $dbName;
-		private $dbHost;
-		private $dbConnection;
-		private $errorString;
-		private $filter;		
-		private $util;
-		public static $instance;
-		public $query;
-		public $newCon;
-		public static $connection;
+		$this->dbConnection = null;
+		$this->filter       = true;
+		$this->newCon       = false;
+	}
 		
-		function __construct()
-		{
-		
-			$this->dbConnection	=	null;
-			$this->filter		=	true;	
-			$this->newCon		=	false;
+	public function setNew(): void
+	{
+		$this->newCon = true;
+	}
+
+	public function noFilter(): void
+	{
+		$this->filter = false;
+	}
+
+	/*
+	 * Returns a live, shared MySQLi connection.
+	 * Credentials are read from config.php (single source of truth).
+	 * Re-uses an existing connection instead of opening a new one each call.
+	 */
+	private function getConnection(): \mysqli
+	{
+		if ($this->dbConnection !== null) {
+			return $this->dbConnection;
 		}
-		
-		function setNew()
-		{
-			$this->newCon	=	true;
+
+		require_once(CONST_BASEDIR . '/config.php');
+
+		$this->dbUser = $config['databaseUser'];
+		$this->dbPass = $config['databasePass'];
+		$this->dbName = $config['databaseName'];
+		$this->dbHost = $config['databaseHost'];
+
+		$conn = @mysqli_connect($this->dbHost, $this->dbUser, $this->dbPass, $this->dbName);
+
+		if (!$conn) {
+			$this->setError('Connection failed: ' . mysqli_connect_error());
+			throw new \RuntimeException('Database connection failed: ' . mysqli_connect_error());
 		}
-		function noFilter()
-		{
-			$this->filter	=	false;
-		}
+
+		mysqli_set_charset($conn, 'utf8mb4');
+		$this->dbConnection = $conn;
+		return $this->dbConnection;
+	}
 		/*
 		 * Setting Error Message on Db Operation
 		 * Input String Message
 		 * Called upon db operation
 		*/
 		
-		function setError($string)
-		{
-			$this->errorString	=	$string;
-			//echo "mysqli ERROR - ".$this->errorString;
-		}
+	public function setError(string $string): void
+	{
+		$this->errorString = $string;
+	}
 		
 		/*
 		 * get Error Message after a db operation
 		 * Retrieves the current error Status
 		*/
 		
-		function getError()
-		{
-			return $this->errorString;
-		}
+	public function getError(): ?string
+	{
+		return $this->errorString;
+	}
 		
 		/*
 		 * Connect to mysqli Database using set up data
@@ -59,86 +90,35 @@
 		 * Modify the constrct params for connection change
 		*/
 		
-		function connect()
-		{
-			if(is_null($this->dbConnection)){
-				require_once(CONST_BASEDIR.'/config.php')	;				
-				$this->dbUser		=	$config["databaseUser"];
-				$this->dbPass		=	$config["databasePass"];
-				$this->dbName		=	$config["databaseName"];
-				$this->dbHost		=	$config["databaseHost"];
-				//try
-				//{
-					
-		/* 		$this->dbConnection = mysqli_connect($this->dbHost,$this->dbUser,$this->dbPass);
-if (!$this->dbConnection) {
-    die("Database connection failed");
-}
-
-// 2. Select a database to use 
-$this->dbConnection = mysqli_select_db($this->dbConnection, $this->dbName);
-
-
-if (!$this->dbConnection) {
-    die("Database selection failed: " . mysqli_error($this->dbConnection));
-}	 */
-					
-					if($this->newCon==true)
-					{
-						$this->dbConnection	=	mysqli_connect($this->dbHost,$this->dbUser,$this->dbPass,true);
-					}
-					else
-					{
-						 $this->dbConnection	=	mysqli_connect($this->dbHost,$this->dbUser,$this->dbPass);
-					}
-					if($this->dbConnection)
-					{
-						$connection = mysqli_select_db($this->dbConnection,$this->dbName);
-						if($connection)
-						{
-						}
-						else
-						{
-							$this->setError(mysqli_error($this->dbConnection));
-						}
-					}
-					else
-					{
-						$this->setError(mysqli_error($this->dbConnection));
-					}
-					return $connection;
-					//print_r($dbConnection);exit;
-				//	$query="SELECT * FROM sky_sldr where sldr_stus=1";
-				//	$result			=	mysqli_query($this->dbConnection,$query);
-				//print_r($result);exit;
-				/*}
-				catch(Exception $c)
-				{
-					$this->setError($c);
-				}*/
-			}
+	/*
+	 * Connect to mysqli Database (legacy method kept for backward compatibility)
+	 */
+	public function connect(): bool
+	{
+		try {
+			$this->getConnection();
+			return true;
+		} catch (\RuntimeException $e) {
+			return false;
 		}
+	}
 		
-		function getInstance(){
-			return $this->dbConnection;
-		}
+	public function getInstance(): mixed
+	{
+		return $this->dbConnection;
+	}
 		
 		
 		/*  * Close the mysqli Connection		 
 		 */
 		
-		function close()
-		{
-			if($this->dbConnection)
-			{
-				mysqli_close($this->dbConnection);
-				$this->dbConnection	=	null;
-			}
-			else
-			{
-				$this->dbConnection	=	null;
-			}
-		}	
+	public function close(): void
+	{
+		if ($this->dbConnection) {
+			mysqli_close($this->dbConnection);
+		}
+		$this->dbConnection = null;
+	}
 		
 		/*
 		 * get ALl results for an SQL Select Statement
@@ -147,167 +127,117 @@ if (!$this->dbConnection) {
 		 * Returns Array
 		*/
 		
-		function fetchAll($query)
-		{
+	public function fetchAll(string $query): array
+	{
+		$this->query = $query;
+		$resultSet   = array();
 
-			//$this->connect();
-			$this->query=$query;
-			//print_r($query);exit;
-			$x = new stdClass();
-			$fileds		=	array();
-			$y = new stdClass();
-			$resultSet	=	array();
-			$row = array();
-			$start = new stdClass();
-			
-		//$conn=	mysqli_connect("localhost","wam_uk_db","qHEAoiiEgTiC","wam_uk_db");
-			$conn=	mysqli_connect("localhost","wamuk_vox_org","[YImVNO}=b([","wamuk_vox_org");
-			/*try
-			{*/
-					$result			=	mysqli_query($conn,$query);//print_r($result);exit;
-				if($result)
-				{
-					$fieldsLength	=	mysqli_num_fields($result);
-				//	print_r($fieldsLength);
-						$i=0;
-							//$fileds[$i]=	mysql_field_name($result,$i);
-							while ($property = mysqli_fetch_field($result)) {
-							$fileds[$i]= $property->name;
-							$i++;
-						}
-					
-				//	$fileds[$x] = new stdClass();
-					//print_r($fileds);exit;
-					if(mysqli_num_rows($result)>0)
-					{
-						$start	=	0;
-						//$row=mysqli_fetch_row($result);
-						 //print_r($row);exit;
-						while($row=mysqli_fetch_row($result))
-						{		//$i = new stdClass();	
-					//$resultSet[][]='';
-							for($j=0;$j<$fieldsLength;$j++ )
-							{				
-						//$y=$fileds[$j];	
-						//print_r($y);exit;
-                              // $resultSet[$start][$fileds[$j]]	=	$row[$j];
-								//	$y=trim($y);
-							  
-								if($this->filter)
-								{
-									
-									$resultSet[$start][$fileds[$j]]	=	$this->removeFilter($row[$j]);	
-								
-								}
-								else
-								{
-								$resultSet[$start][$fileds[$j]]	=	$row[$j];					
-								}
-								
-							}
-							$start++;
+		$conn   = $this->getConnection();
+		$result = mysqli_query($conn, $query);
+
+		if ($result) {
+			$fieldsLength = mysqli_num_fields($result);
+			$fields       = array();
+			$i            = 0;
+			while ($property = mysqli_fetch_field($result)) {
+				$fields[$i] = $property->name;
+				$i++;
+			}
+
+			if (mysqli_num_rows($result) > 0) {
+				$start = 0;
+				while ($row = mysqli_fetch_row($result)) {
+					for ($j = 0; $j < $fieldsLength; $j++) {
+						if ($this->filter) {
+							$resultSet[$start][$fields[$j]] = $this->removeFilter($row[$j]);
+						} else {
+							$resultSet[$start][$fields[$j]] = $row[$j];
 						}
 					}
-					mysqli_free_result($result);
+					$start++;
 				}
-				
-			/*}
-			catch(Exception $c)
-			{
-				$this->setError($c);
-			}*/
-			return $resultSet;
+			}
+			mysqli_free_result($result);
+		} else {
+			$this->setError(mysqli_error($conn));
 		}
+
+		return $resultSet;
+	}
 		
 		/*
 		 * mysqli Insert operations
 		 * Paramms $fild->value pair , table name
 		*/
 		
-		function insert($options,$table)
-		{
-			$queryString	=	"";
-			$p				=	count($options);
-			$start			=	0;
-			$fieldString	=	null;
-			$valueString	=	null;
-			foreach($options as $key=>$val)
-			{
-				$fieldString.=" `{$key}`";
-				$valueString.=" '{$val}' ";
-				if($start<$p-1)
-				{
-					$fieldString.=",";
-					$valueString.=",";
-				}
-				$start++;
-			}			
-			$queryString	=	"INSERT INTO `{$table}` ({$fieldString}) VALUES ({$valueString}) ";
-	//print_r($queryString); exit;
-			echo "<br>";
-			//echo "db".$queryString; 
-			//exit;
-			
-			/*try
-			{*/
-				//$conn=	mysqli_connect("localhost","wam_uk_db","qHEAoiiEgTiC","wam_uk_db");	
-				$conn=	mysqli_connect("localhost","wamuk_vox_org","[YImVNO}=b([","wamuk_vox_org");
-				$result	=	mysqli_query($conn,$queryString) or $this->setError("Insert".mysqli_error($conn));
-			/*}
-			catch(Exception $c)
-			{
-				$this->setError($c);
-			}*/
-		}
-		
-		
-		function insertMulti($fields,$values,$table)
-		{
+	public function insert(array $options, string $table): void
+	{
+		$p           = count($options);
+		$start       = 0;
+		$fieldString = '';
+		$valueString = '';
 
-			$queryString	=	"";
-			$p				=	count($fields);
-			$start			=	0;
-			foreach($fields as $key=>$val){
-				$fieldString.=" `{$val}`";				
-				if($start<$p-1){
-					$fieldString.=",";					
+		foreach ($options as $key => $val) {
+			$fieldString .= " `{$key}`";
+			$valueString .= " '{$val}' ";
+			if ($start < $p - 1) {
+				$fieldString .= ',';
+				$valueString .= ',';
+			}
+			$start++;
+		}
+
+		$queryString = "INSERT INTO `{$table}` ({$fieldString}) VALUES ({$valueString})";
+		$conn        = $this->getConnection();
+		$result      = mysqli_query($conn, $queryString);
+		if (!$result) {
+			$this->setError('Insert: ' . mysqli_error($conn));
+		}
+	}
+		
+		
+	public function insertMulti(array $fields, array $values, string $table): void
+	{
+		$p           = count($fields);
+		$start       = 0;
+		$fieldString = '';
+		$valueString = '';
+
+		foreach ($fields as $val) {
+			$fieldString .= " `{$val}`";
+			if ($start < $p - 1) {
+				$fieldString .= ',';
+			}
+			$start++;
+		}
+
+		for ($i = 0; $i < count($values); $i++) {
+			$p     = count($values[$i]);
+			$start = 0;
+			$valueString .= '(';
+			foreach ($values[$i] as $val) {
+				$valueString .= "'{$val}'";
+				if ($start < $p - 1) {
+					$valueString .= ',';
 				}
 				$start++;
 			}
-			
-			
-			
-			for($i=0;$i<count($values);$i++){
-				$p	=	count($values[$i]);
-				$start			=	0;
-				$valueString.="(";
-				foreach($values[$i] as $key=>$val){
-					$valueString.="'{$val}'";				
-					if($start<$p-1){
-						$valueString.=",";					
-					}
-					$start++;
-				}
-				$valueString.=")";
-				if($i<count($values)-1){
-					$valueString.=",";
-				}
+			$valueString .= ')';
+			if ($i < count($values) - 1) {
+				$valueString .= ',';
 			}
-			unset($fields);
-			unset($values);
-			$queryString	=	"INSERT INTO `{$table}` ({$fieldString}) VALUES {$valueString} ";
-		//echo $queryString;
-			/*try
-			{*/
-				//$conn=	mysqli_connect("localhost","wam_uk_db","qHEAoiiEgTiC","wam_uk_db");
-				$conn=	mysqli_connect("localhost","wamuk_vox_org","[YImVNO}=b([","wamuk_vox_org");
-				$result	=	mysqli_query($conn,$queryString);
-			/*}
-			catch(Exception $c)
-			{
-				$this->setError($c);
-			}*/
 		}
+
+		unset($fields);
+		unset($values);
+
+		$queryString = "INSERT INTO `{$table}` ({$fieldString}) VALUES {$valueString}";
+		$conn        = $this->getConnection();
+		$result      = mysqli_query($conn, $queryString);
+		if (!$result) {
+			$this->setError('InsertMulti: ' . mysqli_error($conn));
+		}
+	}
 		
 		
 		/*
@@ -315,108 +245,99 @@ if (!$this->dbConnection) {
 		 * Params - field->value pair,table name,update condition
 		*/
 		
-		function update($options,$table,$condition)
-		{
-			$queryString	=	"";
-			$fieldString	=	"";			
-			$p				=	count($options);
-			$start			=	0;
-			foreach($options as $key=>$val){
-				$fieldString.=" `{$key}`='{$val}'";
-				if($start<$p-1){
-					$fieldString.=",";
-				}
-				$start++;
-			}			
-			$queryString	=	"UPDATE `{$table}` SET {$fieldString} ";
-	
-		
-			if(!empty($condition)){
-		  $queryString.=" WHERE {$condition} ";
-		  		//print_r($queryString);exit;
-		
-	
+	public function update(array $options, string $table, string $condition): void
+	{
+		$fieldString = '';
+		$p           = count($options);
+		$start       = 0;
+
+		foreach ($options as $key => $val) {
+			$fieldString .= " `{$key}`='{$val}'";
+			if ($start < $p - 1) {
+				$fieldString .= ',';
 			}
-			$this->query	=	$queryString;
-						
-			/*try
-			{*/
-				$conn=	mysqli_connect("localhost","wamuk_vox_org","[YImVNO}=b([","wamuk_vox_org");
-				$result	=	mysqli_query($conn,$queryString) or $this->setError(mysqli_error($conn));
-			/*}
-			catch(Exception $c)
-			{
-				$this->setError($c);
-			}*/
-			 $this->query." <br/>";
-	
-			
+			$start++;
 		}
+
+		$queryString = "UPDATE `{$table}` SET {$fieldString}";
+		if (!empty($condition)) {
+			$queryString .= " WHERE {$condition}";
+		}
+		$this->query = $queryString;
+
+		$conn   = $this->getConnection();
+		$result = mysqli_query($conn, $queryString);
+		if (!$result) {
+			$this->setError(mysqli_error($conn));
+		}
+	}
 		
 		/*
 		 * mysqli Delete Operation
 		 * Params - table name , condition
 		*/
 		
-		function delete($table,$condition)
-		{
-			$queryString	=	"DELETE FROM `{$table}` ";
-			if(!empty($condition))
-			{
-				$queryString.=" WHERE {$condition} ";
-				
-			}
-			/*try
-			{*/
-				//$conn=	mysqli_connect("localhost","wam_uk_db","qHEAoiiEgTiC","wam_uk_db");
-				$conn=	mysqli_connect("localhost","wamuk_vox_org","[YImVNO}=b([","wamuk_vox_org");
-				$result	=	mysqli_query($conn,$queryString) or $this->setError(mysqli_error($conn));
-			/*}
-			catch(Exception $c)
-			{
-				$this->setError($c);
-			}*/
+	public function delete(string $table, string $condition): void
+	{
+		$queryString = "DELETE FROM `{$table}`";
+		if (!empty($condition)) {
+			$queryString .= " WHERE {$condition}";
 		}
+
+		$conn   = $this->getConnection();
+		$result = mysqli_query($conn, $queryString);
+		if (!$result) {
+			$this->setError(mysqli_error($conn));
+		}
+	}
 		
-		function execute($query){
-				//$conn=	mysqli_connect("localhost","wam_uk_db","qHEAoiiEgTiC","wam_uk_db");
-				$conn=	mysqli_connect("localhost","wamuk_vox_org","[YImVNO}=b([","wamuk_vox_org");
-			$result	=	mysqli_query($conn,$query) or $this->setError(mysqli_error($conn));
+	public function execute(string $query): void
+	{
+		$conn   = $this->getConnection();
+		$result = mysqli_query($conn, $query);
+		if (!$result) {
+			$this->setError(mysqli_error($conn));
 		}
+	}
 		/*
 		 * Returns last insert ID		 
 		*/
 		
-		function lastInsertId()
-		{
-			return mysqli_insert_id();
-		}
-		
-		function affectedRows($instance){
-			return mysqli_affected_rows($instance);
-		}
+	/*
+	 * BUG FIX: original called mysqli_insert_id() with no arguments — that is invalid.
+	 * Must pass the active connection object.
+	 */
+	public function lastInsertId(): int
+	{
+		return (int) mysqli_insert_id($this->getConnection());
+	}
+
+	public function affectedRows(): int
+	{
+		return (int) mysqli_affected_rows($this->getConnection());
+	}
 		
 		/*
 		 * Filter with Slash on special chars
 		*/
 		
-		function addFilter($string){
-			return addslashes($string);	
-			//return $string;			
-		}
-		
-		/*
-		 * Remove added special chars on STring 
-		*/
-		
-		function removeFilter($string){			
-				return stripslashes($string);			
-		}	
-		
-		
-		function escapeHtml($text){
-			return strip_tags($text);
-		}
+	public function addFilter(string $string): string
+	{
+		return addslashes($string);
+	}
+
+	/*
+	 * Remove added special chars on String
+	 */
+	public function removeFilter(?string $string): string
+	{
+		return stripslashes((string) $string);
+	}
+
+	public function escapeHtml(string $text): string
+	{
+		return strip_tags($text);
+	}
 		
 		
 	}

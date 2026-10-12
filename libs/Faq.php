@@ -1,8 +1,7 @@
 <?php
 
 class Faq extends MySql{
-	
-	private $lastId;
+
 	function getNextOrder(){
 		$query="SELECT max(`order`) FROM `cms_faq`";
 		$rec=	$this->fetchAll($query);

@@ -1,8 +1,7 @@
 <?php
 
 class Content extends MySql{
-	
-	private $lastId;
+
 	/*
 	 * Get the Level of the content
 	*/
@@ -643,10 +642,7 @@ class Content extends MySql{
 	function headerMenu(){
 		$query	=	"SELECT `page_id`,`order`,`title` FROM `db_pages` WHERE `parent`=0 ORDER BY `order`";
 		$rec	=	$this->fetchAll($query);
-		print_r($rec);
 		return $rec;
-	
-	
 	}
 
 	function updateUserPost($id,$comments){

@@ -91,7 +91,7 @@
 	}
 
 
-	function getCover(){
+	function getCover($id = 0){
 		$query="SELECT * FROM `db_images` WHERE `album_id`='$id' AND `status`='1' ORDER BY rand() LIMIT 0,1";
 		$rec	=	$this->fetchAll($query);
 		return $rec;

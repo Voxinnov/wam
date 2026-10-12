@@ -1,21 +1,24 @@
 <?php	 	
 
-    class Uploader
+class Uploader
+{
+    private string $destinationPath;
+    private string $errorMessage = '';
+    private array $extensions = [];
+    private bool $allowAll = false;
+    private int|float $maxSize = 0;
+    private string $uploadName = '';
+    private string $sequence = '';
+    private string $imageSeq = '';
+    private string $random = '';
+    private bool $sameFileName = false;
+    private bool $sameName = false;
+    
+    function __construct($path)
     {
-        private $destinationPath;
-        private $errorMessage;
-        private $extensions;
-        private $allowAll;
-        private $maxSize;
-        private $uploadName;
-		private $seqnence;
-		private $random;
-        
-        function __construct($path)
-        {
-            $this->destinationPath  =   $path;
-            $this->allowAll =   false;
-        }
+        $this->destinationPath  =   $path;
+        $this->allowAll =   false;
+    }
         
         function allowAllFormats()
         {
@@ -104,7 +107,6 @@
             }
             else if($this->allowAll || (!$this->allowAll && in_array($ext,$this->extensions)))
             {
-                $util   =   new Utilities();
 		        if($this->sameName==false)
                 {
                     if($this->imageSeq!='')
@@ -113,12 +115,12 @@
                     }
                     else
                     {
-                        $this->uploadName   =  substr(md5(rand(1111,9999)),0,8).$this->getRandom().rand(1111,1000).".".$ext;
+                        $this->uploadName   =  substr(md5((string)rand(1111,9999)),0,8).$this->getRandom().rand(1111,1000).".".$ext;
                     }
                 }
                 else
                 {
-                    echo $this->uploadName = $name;
+                    $this->uploadName = $name;
                 }
                 
                 if(move_uploaded_file($_FILES[$fileBrowse]["tmp_name"],$this->destinationPath.$this->uploadName))

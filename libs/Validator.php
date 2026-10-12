@@ -138,7 +138,7 @@
 		*/
 		function validate()
 		{
-			if(count($this->validateFields)==0 || !is_array($this->validateFields)){
+			if(!is_array($this->validateFields) || count($this->validateFields)==0){
 				return false;
 			}else{
 				$error	=	0;

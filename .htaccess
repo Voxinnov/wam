@@ -11,9 +11,12 @@ RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 RewriteCond %{HTTP_HOST} ^www\.wamuk\.org$ [NC]
 RewriteRule ^ https://wamuk.org%{REQUEST_URI} [L,R=301]
 
-# php -- BEGIN cPanel-generated handler, do not edit
-# Set the “ea-php73” package as the default “PHP” programming language.
-<IfModule mime_module>
-  AddHandler application/x-httpd-ea-php73 .php .php7 .phtml
-</IfModule>
-# php -- END cPanel-generated handler, do not edit
+# ── 3) Security hardening
+# Disable directory listing
+Options -Indexes
+
+# Protect hidden files and directories (.git, .env, etc.)
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>

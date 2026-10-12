@@ -6,7 +6,7 @@
 		private $message;
 		private $type;		
 		
-		function __construct($message,$type){
+		function __construct($message = '', $type = ''){
 			$this->message	=	$message;
 			$this->type			=	$type;
 		}
@@ -19,10 +19,10 @@
 		
 		
 		function showMessage(){
-			$view =	$_SESSION["messageView"];
-			$message = $_SESSION["messageText"];
-			$type =	$_SESSION["messageType"];
-			if($view=="0" && !empty($message) && !empty($type)){
+			$view    = $_SESSION["messageView"] ?? null;
+			$message = $_SESSION["messageText"] ?? '';
+			$type    = $_SESSION["messageType"] ?? '';
+			if(($view === 0 || $view === "0") && !empty($message) && !empty($type)){
 				switch($type){
 					case 'error':
 						echo '<div class="msgError">'.$message.'</div>';
